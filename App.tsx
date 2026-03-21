@@ -3,52 +3,153 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   ListRenderItem,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { fetchCommunityContent } from './src/services/communityApi';
+import { fetchCommunityContentPage } from './src/services/communityApi';
+import { styles } from './src/styles/appStyles';
 import { ContentItem, ContentType } from './src/types';
 
 type AudienceFilter = 'All' | 'Student' | 'Parent' | 'Educator';
 
 const audienceOptions: AudienceFilter[] = ['All', 'Student', 'Parent', 'Educator'];
+const PAGE_SIZE = 9;
 
 export default function App() {
   const [contentType, setContentType] = useState<ContentType>('Video');
   const [audience, setAudience] = useState<AudienceFilter>('All');
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [results, setResults] = useState<ContentItem[]>([]);
+  const [thumbnailRetry, setThumbnailRetry] = useState<Record<string, boolean>>({});
+  const [thumbnailFailed, setThumbnailFailed] = useState<Record<string, boolean>>({});
+  const [offset, setOffset] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
+    let requestId = 0;
 
-    const load = async () => {
-      setLoading(true);
-      const response = await fetchCommunityContent({ contentType, audience, search });
-      if (isMounted) {
-        setResults(response.items);
-        setLoading(false);
+    const loadPage = async (nextOffset: number, append: boolean) => {
+      if (!isMounted) {
+        return;
       }
+
+      requestId += 1;
+      const activeRequest = requestId;
+
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoadingInitial(true);
+      }
+
+      const response = await fetchCommunityContentPage({
+        contentType,
+        audience,
+        search,
+        offset: nextOffset,
+        limit: PAGE_SIZE,
+      });
+
+      if (!isMounted || activeRequest !== requestId) {
+        return;
+      }
+
+      setTotalCount(response.total);
+      setOffset(nextOffset + PAGE_SIZE);
+      if (!append) {
+        setThumbnailRetry({});
+        setThumbnailFailed({});
+      }
+
+      setResults((previous) => {
+        if (!append) {
+          return response.items;
+        }
+
+        return [...previous, ...response.items];
+      });
+
+      setLoadingInitial(false);
+      setLoadingMore(false);
     };
 
-    void load();
+    void loadPage(0, false);
 
     return () => {
       isMounted = false;
     };
   }, [contentType, audience, search]);
 
+  const hasMore = offset < totalCount;
+
+  const loadMore = async () => {
+    if (loadingInitial || loadingMore || !hasMore) {
+      return;
+    }
+
+    setLoadingMore(true);
+    const response = await fetchCommunityContentPage({
+      contentType,
+      audience,
+      search,
+      offset,
+      limit: PAGE_SIZE,
+    });
+
+    setResults((previous) => [...previous, ...response.items]);
+    setTotalCount(response.total);
+    setOffset((previous) => previous + PAGE_SIZE);
+    setLoadingMore(false);
+  };
+
   const renderItem: ListRenderItem<ContentItem> = ({ item }) => {
     const metric = 'duration' in item ? item.duration : item.readTime;
+    const useFallback = thumbnailRetry[item.id] ?? false;
+    const hasFailedThumbnail = thumbnailFailed[item.id] ?? false;
+    const thumbnailUrl =
+      'duration' in item
+        ? useFallback
+          ? item.thumbnailFallbackUrl ?? item.thumbnailUrl
+          : item.thumbnailUrl
+        : undefined;
+    const showThumbnail = Boolean(thumbnailUrl) && !hasFailedThumbnail;
+    const showThumbnailPlaceholder = 'duration' in item && !showThumbnail;
 
     return (
       <View style={styles.card}>
+        {showThumbnail ? (
+          <Image
+            source={{ uri: thumbnailUrl }}
+            style={styles.thumbnail}
+            resizeMode="cover"
+            onError={() => {
+              if (!('duration' in item)) {
+                return;
+              }
+
+              if (item.thumbnailFallbackUrl && !thumbnailRetry[item.id]) {
+                setThumbnailRetry((previous) => ({ ...previous, [item.id]: true }));
+                return;
+              }
+
+              setThumbnailFailed((previous) => ({ ...previous, [item.id]: true }));
+            }}
+          />
+        ) : null}
+        {showThumbnailPlaceholder ? (
+          <View style={styles.thumbnailPlaceholder}>
+            <Text style={styles.thumbnailPlaceholderText}>Thumbnail unavailable</Text>
+          </View>
+        ) : null}
+
         <View style={styles.cardMetaRow}>
           <Text style={styles.typeLabel}>{contentType.toUpperCase()}</Text>
           <Text style={styles.duration}>{metric}</Text>
@@ -58,13 +159,46 @@ export default function App() {
         <Text style={styles.cardBody}>{item.description}</Text>
 
         <View style={styles.tagRow}>
-          <Text style={styles.tag}>{item.audience}</Text>
-          <Text style={styles.tag}>{item.category}</Text>
-          {item.language ? <Text style={styles.tag}>{item.language}</Text> : null}
-          {item.requiresLogin ? <Text style={styles.lockTag}>LOG IN TO VIEW</Text> : null}
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>{item.audience}</Text>
+          </View>
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>{item.category}</Text>
+          </View>
+          {item.language ? (
+            <View style={styles.tag}>
+              <Text style={styles.tagText}>{item.language}</Text>
+            </View>
+          ) : null}
+          {item.requiresLogin ? (
+            <View style={styles.lockTag}>
+              <Text style={styles.lockTagText}>LOG IN TO VIEW</Text>
+            </View>
+          ) : null}
         </View>
       </View>
     );
+  };
+
+  const renderFooter = () => {
+    if (loadingMore) {
+      return (
+        <View style={styles.centerState}>
+          <ActivityIndicator color="#1d4ed8" size="small" />
+          <Text style={styles.stateText}>Loading more...</Text>
+        </View>
+      );
+    }
+
+    if (results.length > 0 && !hasMore) {
+      return (
+        <View style={styles.centerState}>
+          <Text style={styles.stateText}>No more results.</Text>
+        </View>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -75,12 +209,14 @@ export default function App() {
           contentContainerStyle={styles.contentContainer}
           data={results}
           keyExtractor={(item) => item.id}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.25}
           ListHeaderComponent={
             <View>
               <Text style={styles.brand}>BigFuture Community Library</Text>
               <Text style={styles.heading}>{contentType}s</Text>
               <Text style={styles.subheading}>
-                Starter mobile experience with local mocked API data.
+                Starter mobile experience with live Community Hub API data.
               </Text>
 
               <View style={styles.switchRow}>
@@ -129,7 +265,7 @@ export default function App() {
             </View>
           }
           ListEmptyComponent={
-            loading ? (
+            loadingInitial ? (
               <View style={styles.centerState}>
                 <ActivityIndicator color="#1d4ed8" size="large" />
                 <Text style={styles.stateText}>Loading content...</Text>
@@ -140,168 +276,10 @@ export default function App() {
               </View>
             )
           }
+          ListFooterComponent={renderFooter}
           renderItem={renderItem}
         />
       </SafeAreaView>
     </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  contentContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    gap: 12,
-  },
-  brand: {
-    color: '#0f172a',
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  heading: {
-    color: '#0f172a',
-    fontSize: 30,
-    fontWeight: '800',
-  },
-  subheading: {
-    color: '#475569',
-    fontSize: 14,
-    marginBottom: 14,
-    marginTop: 4,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  toggle: {
-    backgroundColor: '#e2e8f0',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  toggleSelected: {
-    backgroundColor: '#1d4ed8',
-  },
-  toggleText: {
-    color: '#1e293b',
-    fontWeight: '700',
-  },
-  toggleTextSelected: {
-    color: '#f8fafc',
-  },
-  searchInput: {
-    backgroundColor: '#ffffff',
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    borderWidth: 1,
-    fontSize: 15,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  audienceRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
-  },
-  filterPill: {
-    backgroundColor: '#dbeafe',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  filterPillSelected: {
-    backgroundColor: '#1e3a8a',
-  },
-  filterText: {
-    color: '#1e3a8a',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  filterTextSelected: {
-    color: '#eff6ff',
-  },
-  resultCount: {
-    color: '#334155',
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 12,
-    padding: 14,
-  },
-  cardMetaRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  typeLabel: {
-    color: '#2563eb',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  duration: {
-    color: '#475569',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  cardTitle: {
-    color: '#0f172a',
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  cardBody: {
-    color: '#334155',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tag: {
-    backgroundColor: '#f1f5f9',
-    borderRadius: 999,
-    color: '#334155',
-    fontSize: 11,
-    fontWeight: '700',
-    overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  lockTag: {
-    backgroundColor: '#0f172a',
-    borderRadius: 999,
-    color: '#f8fafc',
-    fontSize: 11,
-    fontWeight: '800',
-    overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  centerState: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  stateText: {
-    color: '#475569',
-    marginTop: 8,
-  },
-});

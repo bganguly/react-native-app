@@ -1,6 +1,24 @@
 # React Native App
 
-Starter Expo React Native app with local mocked Community Hub data.
+Starter Expo React Native app with live Community Hub API data.
+
+## Screenshots
+
+### QR Code
+
+![QR Code](docs/screenshots/Screen%20Shot%202026-03-21%20at%2012.17.38%20PM.png)
+
+### Web
+
+![Web](docs/screenshots/Screen%20Shot%202026-03-21%20at%2012.15.25%20PM.png)
+
+### iOS
+
+![iOS](docs/screenshots/Screen%20Shot%202026-03-21%20at%2012.16.26%20PM.png)
+
+### Android
+
+![Android](docs/screenshots/Screen%20Shot%202026-03-21%20at%2012.30.50%20PM.png)
 
 ## Prerequisites (system)
 
@@ -11,11 +29,44 @@ Starter Expo React Native app with local mocked Community Hub data.
 
 Note: A global Expo CLI binary is not required. This project uses npx.
 
+## Verify requirements
+
+Run this script to validate local machine requirements for this Expo project:
+
+npm run check:requirements
+
+This check is tuned for macOS Monterey on a 2015 MacBook Pro and validates:
+
+- Node.js and npm versions
+- Xcode, xcodebuild, simctl, and iOS runtimes
+- Android SDK directory, adb, emulator, and AVD presence
+- Java and optional watchman
+
 ## Install
 
 npm install
 
-## Run
+## One-command workflow
+
+Use these commands if you want setup and run steps in one place:
+
+- Setup only (install/check/fix versions):
+	- npm run quickstart
+- Setup + run iOS:
+	- npm run quickstart:ios
+- Setup + run Android:
+	- npm run quickstart:android
+- Setup + run web:
+	- npm run quickstart:web
+
+The quickstart flow runs this sequence:
+
+1. npm install (if node_modules is missing)
+2. npm run check:requirements
+3. npx expo install --fix
+4. starts target platform if provided
+
+## Run (if dependecncies have already been ckecked previously)
 
 - npm run ios
 - npm run android
@@ -31,17 +82,6 @@ Web support is handled by project dependencies in package.json:
 If missing, install with:
 
 npx expo install react-dom react-native-web
-
-## Safe area setup
-
-This app uses safe-area primitives from react-native-safe-area-context:
-
-- SafeAreaProvider
-- SafeAreaView
-
-Install (or re-sync) with:
-
-npx expo install react-native-safe-area-context
 
 ## Deprecated package warnings
 
@@ -82,3 +122,25 @@ Use this sequence:
 If a simulator hangs on first launch, wait for migration to finish once or reset it in Simulator:
 
 - Device > Erase All Content and Settings
+
+## Android simulator troubleshooting
+
+If Android launch fails (no devices found, emulator not detected, app not opening), use this sequence:
+
+1. Verify Android tools are available:
+	- adb devices
+	- emulator -list-avds
+2. Start an emulator from Android Studio Device Manager, or from terminal:
+	- emulator -avd <YOUR_AVD_NAME>
+3. Confirm emulator is connected:
+	- adb devices
+4. Start Expo on Android:
+	- npx expo start --android
+
+If detection is flaky:
+
+- Restart adb:
+	- adb kill-server
+	- adb start-server
+- Cold boot or wipe emulator data from Device Manager
+- Ensure Android Studio SDK and system images are installed for your AVD

@@ -6,7 +6,12 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "check:requirements": "bash ./scripts/check-requirements.sh",
+    "quickstart": "bash ./scripts/quickstart.sh",
+    "quickstart:ios": "bash ./scripts/quickstart.sh ios",
+    "quickstart:android": "bash ./scripts/quickstart.sh android",
+    "quickstart:web": "bash ./scripts/quickstart.sh web"
   },
   "dependencies": {
     "expo": "^54.0.33",

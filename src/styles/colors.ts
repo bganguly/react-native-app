@@ -1,0 +1,16 @@
+export const colors = {
+  slate950: '#0f172a',
+  slate800: '#1e293b',
+  slate700: '#334155',
+  slate600: '#475569',
+  slate300: '#cbd5e1',
+  slate200: '#e2e8f0',
+  slate100: '#f1f5f9',
+  slate50: '#f8fafc',
+  white: '#ffffff',
+  blue900: '#1e3a8a',
+  blue700: '#1d4ed8',
+  blue600: '#2563eb',
+  blue100: '#dbeafe',
+  blue50: '#eff6ff',
+} as const;

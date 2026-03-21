@@ -16,6 +16,8 @@ type BaseContentItem = {
 
 export type VideoItem = BaseContentItem & {
   duration: string;
+  thumbnailUrl?: string;
+  thumbnailFallbackUrl?: string;
 };
 
 export type ArticleItem = BaseContentItem & {
