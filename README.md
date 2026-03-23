@@ -12,19 +12,19 @@ Starter Expo React Native app with live Community Hub API data.
 
 ### QR Code
 
-![QR Code](docs/screenshots/Screen%20Shot%202026-03-21%20at%2012.17.38%20PM.png)
+![QR Code](docs/screenshots/QR%20Code.png)
 
 ### Web
 
-![Web](docs/screenshots/Screen%20Shot%202026-03-21%20at%2012.15.25%20PM.png)
+![Web](docs/screenshots/Web.png)
 
 ### iOS
 
-![iOS](docs/screenshots/Screen%20Shot%202026-03-21%20at%2012.16.26%20PM.png)
+![iOS](docs/screenshots/iOS.png)
 
 ### Android
 
-![Android](docs/screenshots/Screen%20Shot%202026-03-21%20at%2012.30.50%20PM.png)
+![Android](docs/screenshots/Android.png)
 
 ## Prerequisites (system)
 
