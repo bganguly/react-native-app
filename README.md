@@ -71,6 +71,7 @@ The quickstart flow runs this sequence:
 - npm run ios
 - npm run android
 - npm run web
+- npm run emulator:android (launch emulator only)
 
 ## Web support packages
 
@@ -132,6 +133,7 @@ If Android launch fails (no devices found, emulator not detected, app not openin
 	- emulator -list-avds
 2. Start an emulator from Android Studio Device Manager, or from terminal:
 	- emulator -avd <YOUR_AVD_NAME>
+	- or npm run emulator:android
 3. Confirm emulator is connected:
 	- adb devices
 4. Start Expo on Android:
@@ -144,3 +146,5 @@ If detection is flaky:
 	- adb start-server
 - Cold boot or wipe emulator data from Device Manager
 - Ensure Android Studio SDK and system images are installed for your AVD
+- If content API requests hang/spin on Android while iOS works, relaunch emulator with explicit DNS:
+	- ANDROID_EMULATOR_DNS=8.8.8.8,1.1.1.1 npm run emulator:android

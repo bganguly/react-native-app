@@ -27,6 +27,7 @@ export default function App() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [results, setResults] = useState<ContentItem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [thumbnailRetry, setThumbnailRetry] = useState<Record<string, boolean>>({});
   const [thumbnailFailed, setThumbnailFailed] = useState<Record<string, boolean>>({});
   const [offset, setOffset] = useState(0);
@@ -48,34 +49,44 @@ export default function App() {
         setLoadingMore(true);
       } else {
         setLoadingInitial(true);
+        setLoadError(null);
       }
 
-      const response = await fetchCommunityContentPage({
-        contentType,
-        audience,
-        search,
-        offset: nextOffset,
-        limit: PAGE_SIZE,
-      });
+      try {
+        const response = await fetchCommunityContentPage({
+          contentType,
+          audience,
+          search,
+          offset: nextOffset,
+          limit: PAGE_SIZE,
+        });
 
-      if (!isMounted || activeRequest !== requestId) {
-        return;
-      }
-
-      setTotalCount(response.total);
-      setOffset(nextOffset + PAGE_SIZE);
-      if (!append) {
-        setThumbnailRetry({});
-        setThumbnailFailed({});
-      }
-
-      setResults((previous) => {
-        if (!append) {
-          return response.items;
+        if (!isMounted || activeRequest !== requestId) {
+          return;
         }
 
-        return [...previous, ...response.items];
-      });
+        setTotalCount(response.total);
+        setOffset(nextOffset + PAGE_SIZE);
+        if (!append) {
+          setThumbnailRetry({});
+          setThumbnailFailed({});
+        }
+
+        setResults((previous) => {
+          if (!append) {
+            return response.items;
+          }
+
+          return [...previous, ...response.items];
+        });
+      } catch (error) {
+        if (!isMounted || activeRequest !== requestId) {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : 'Failed to load content.';
+        setLoadError(message);
+      }
 
       setLoadingInitial(false);
       setLoadingMore(false);
@@ -96,17 +107,25 @@ export default function App() {
     }
 
     setLoadingMore(true);
-    const response = await fetchCommunityContentPage({
-      contentType,
-      audience,
-      search,
-      offset,
-      limit: PAGE_SIZE,
-    });
+    setLoadError(null);
 
-    setResults((previous) => [...previous, ...response.items]);
-    setTotalCount(response.total);
-    setOffset((previous) => previous + PAGE_SIZE);
+    try {
+      const response = await fetchCommunityContentPage({
+        contentType,
+        audience,
+        search,
+        offset,
+        limit: PAGE_SIZE,
+      });
+
+      setResults((previous) => [...previous, ...response.items]);
+      setTotalCount(response.total);
+      setOffset((previous) => previous + PAGE_SIZE);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load more content.';
+      setLoadError(message);
+    }
+
     setLoadingMore(false);
   };
 
@@ -269,6 +288,11 @@ export default function App() {
               <View style={styles.centerState}>
                 <ActivityIndicator color="#1d4ed8" size="large" />
                 <Text style={styles.stateText}>Loading content...</Text>
+              </View>
+            ) : loadError ? (
+              <View style={styles.centerState}>
+                <Text style={styles.stateText}>Unable to load content.</Text>
+                <Text style={styles.stateText}>{loadError}</Text>
               </View>
             ) : (
               <View style={styles.centerState}>

@@ -5,6 +5,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
+    "emulator:android": "bash ./scripts/start-android-emulator.sh",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "check:requirements": "bash ./scripts/check-requirements.sh",
