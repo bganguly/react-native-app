@@ -4,9 +4,9 @@ Starter Expo React Native app with live Community Hub API data.
 
 ## Videos
 
-- [Community Library Demo 1](docs/videos/Screen%20Recording%202026-03-22%20at%2010.21.25%20PM.mov)
-- [Community Library Demo 2](docs/videos/Screen%20Recording%202026-03-22%20at%2010.23.09%20PM.mov)
-- [Community Library Demo 3](docs/videos/Screen%20Recording%202026-03-22%20at%2010.39.55%20PM.mov)
+- [community library ios app](docs/videos/community-library-ios-app.mp4)
+- [community library android app](docs/videos/community-library-android-app.mp4)
+- [community library webapp](docs/videos/community-library-webapp.mp4)
 
 ## Screenshots
 
@@ -39,7 +39,9 @@ Note: A global Expo CLI binary is not required. This project uses npx.
 
 Run this script to validate local machine requirements for this Expo project:
 
+```bash
 npm run check:requirements
+```
 
 This check is tuned for macOS Monterey on a 2015 MacBook Pro and validates:
 
@@ -50,34 +52,74 @@ This check is tuned for macOS Monterey on a 2015 MacBook Pro and validates:
 
 ## Install
 
+```bash
 npm install
+```
 
 ## One-command workflow
 
 Use these commands if you want setup and run steps in one place:
 
 - Setup only (install/check/fix versions):
-	- npm run quickstart
+	```bash
+	npm run quickstart
+	```
+
 - Setup + run iOS:
-	- npm run quickstart:ios
+	```bash
+	npm run quickstart:ios
+	```
+
 - Setup + run Android:
-	- npm run quickstart:android
+	```bash
+	npm run quickstart:android
+	```
+
 - Setup + run web:
-	- npm run quickstart:web
+	```bash
+	npm run quickstart:web
+	```
 
 The quickstart flow runs this sequence:
 
-1. npm install (if node_modules is missing)
-2. npm run check:requirements
-3. npx expo install --fix
+1. Install dependencies (if node_modules is missing):
+	```bash
+	npm install
+	```
+
+2. Validate requirements:
+	```bash
+	npm run check:requirements
+	```
+
+3. Fix Expo dependency alignment:
+	```bash
+	npx expo install --fix
+	```
+
 4. starts target platform if provided
 
 ## Run (if dependecncies have already been ckecked previously)
 
-- npm run ios
-- npm run android
-- npm run web
-- npm run emulator:android (launch emulator only)
+- iOS:
+	```bash
+	npm run ios
+	```
+
+- Android:
+	```bash
+	npm run android
+	```
+
+- Web:
+	```bash
+	npm run web
+	```
+
+- Emulator only:
+	```bash
+	npm run emulator:android
+	```
 
 ## Web support packages
 
@@ -88,7 +130,9 @@ Web support is handled by project dependencies in package.json:
 
 If missing, install with:
 
+```bash
 npx expo install react-dom react-native-web
+```
 
 ## Deprecated package warnings
 
@@ -100,7 +144,11 @@ You may see npm warnings for packages like inflight, rimraf@3, and glob@7 during
 
 Current recommendation:
 
-- Keep Expo SDK dependencies aligned with: npx expo install --fix
+- Keep Expo SDK dependencies aligned with:
+	```bash
+	npx expo install --fix
+	```
+
 - Update Expo/RN when newer SDK releases replace those transitive packages upstream
 - Avoid forcing npm overrides for these packages unless you are ready to test and own breakage risk
 
@@ -116,15 +164,27 @@ it usually means Expo is trying to boot a stale/unavailable simulator UUID.
 Use this sequence:
 
 1. Ensure Xcode is selected:
-	- xcode-select -p
-	- Expected path: /Applications/Xcode.app/Contents/Developer
+	```bash
+	xcode-select -p
+	```
+
+Expected path: /Applications/Xcode.app/Contents/Developer
+
 2. Remove stale simulator entries:
-	- xcrun simctl delete unavailable
+	```bash
+	xcrun simctl delete unavailable
+	```
+
 3. Boot a valid simulator:
-	- open -a Simulator
-	- xcrun simctl boot "iPhone 14"
+	```bash
+	open -a Simulator
+	xcrun simctl boot "iPhone 14"
+	```
+
 4. Start Expo for iOS:
-	- npx expo start --ios
+	```bash
+	npx expo start --ios
+	```
 
 If a simulator hangs on first launch, wait for migration to finish once or reset it in Simulator:
 
@@ -135,22 +195,43 @@ If a simulator hangs on first launch, wait for migration to finish once or reset
 If Android launch fails (no devices found, emulator not detected, app not opening), use this sequence:
 
 1. Verify Android tools are available:
-	- adb devices
-	- emulator -list-avds
+	```bash
+	adb devices
+	emulator -list-avds
+	```
+
 2. Start an emulator from Android Studio Device Manager, or from terminal:
-	- emulator -avd <YOUR_AVD_NAME>
-	- or npm run emulator:android
+	```bash
+	emulator -avd <YOUR_AVD_NAME>
+	```
+
+	or
+
+	```bash
+	npm run emulator:android
+	```
+
 3. Confirm emulator is connected:
-	- adb devices
+	```bash
+	adb devices
+	```
+
 4. Start Expo on Android:
-	- npx expo start --android
+	```bash
+	npx expo start --android
+	```
 
 If detection is flaky:
 
 - Restart adb:
-	- adb kill-server
-	- adb start-server
+	```bash
+	adb kill-server
+	adb start-server
+	```
+
 - Cold boot or wipe emulator data from Device Manager
 - Ensure Android Studio SDK and system images are installed for your AVD
 - If content API requests hang/spin on Android while iOS works, relaunch emulator with explicit DNS:
-	- ANDROID_EMULATOR_DNS=8.8.8.8,1.1.1.1 npm run emulator:android
+	```bash
+	ANDROID_EMULATOR_DNS=8.8.8.8,1.1.1.1 npm run emulator:android
+	```
