@@ -2,6 +2,12 @@
 
 Starter Expo React Native app with live Community Hub API data.
 
+## Videos
+
+- [Community Library Demo 1](docs/videos/Screen%20Recording%202026-03-22%20at%2010.21.25%20PM.mov)
+- [Community Library Demo 2](docs/videos/Screen%20Recording%202026-03-22%20at%2010.23.09%20PM.mov)
+- [Community Library Demo 3](docs/videos/Screen%20Recording%202026-03-22%20at%2010.39.55%20PM.mov)
+
 ## Screenshots
 
 ### QR Code
