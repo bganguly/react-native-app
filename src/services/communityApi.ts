@@ -1,4 +1,5 @@
 import { ArticleItem, Audience, ContentCategory, ContentItem, ContentType, VideoItem } from '../types';
+import { FALLBACK_ARTICLES, FALLBACK_VIDEOS } from './communityFallbackData';
 
 export type VideoQuery = {
   contentType: ContentType;
@@ -128,6 +129,10 @@ function shorten(text: string, max = 220): string {
   return `${text.slice(0, max - 1).trim()}...`;
 }
 
+function formatDescriptionForDisplay(raw?: string | null): string {
+  return shorten(stripHtml(raw));
+}
+
 function toAbsoluteMediaUrl(path?: string | null): string | undefined {
   if (!path) {
     return undefined;
@@ -188,6 +193,18 @@ function getVideoThumbnailUrl(item: JsonApiVideo): string | undefined {
   return getYoutubeThumbnail(item.field_video_link);
 }
 
+function getFallbackPage(items: ContentItem[], offset: number, limit: number): ContentResponse {
+  const pagedItems = items.slice(offset, offset + limit).map((item) => ({
+    ...item,
+    description: formatDescriptionForDisplay(item.description),
+  }));
+
+  return {
+    total: items.length,
+    items: pagedItems,
+  };
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
 
@@ -202,7 +219,12 @@ async function getAudienceLookup(): Promise<Map<string, string>> {
   if (!audienceLookupPromise) {
     audienceLookupPromise = fetchJson<{ data: JsonApiTaxonomyItem[] }>(
       `${JSONAPI_BASE}taxonomy_term/audience?fields[taxonomy_term--audience]=name&jsonapi_include=1`
-    ).then((payload) => new Map(payload.data.map((item) => [item.id, item.name ?? ''])));
+    )
+      .then((payload) => new Map(payload.data.map((item) => [item.id, item.name ?? ''])))
+      .catch((error) => {
+        audienceLookupPromise = null;
+        throw error;
+      });
   }
 
   return audienceLookupPromise;
@@ -212,7 +234,12 @@ async function getTopicLookup(): Promise<Map<string, string>> {
   if (!topicLookupPromise) {
     topicLookupPromise = fetchJson<{ data: JsonApiTaxonomyItem[] }>(
       `${JSONAPI_BASE}taxonomy_term/bigfuture_community_topics?fields[taxonomy_term--bigfuture_community_topics]=name,parent&jsonapi_include=1&page[limit]=200`
-    ).then((payload) => new Map(payload.data.map((item) => [item.id, item.name ?? ''])));
+    )
+      .then((payload) => new Map(payload.data.map((item) => [item.id, item.name ?? ''])))
+      .catch((error) => {
+        topicLookupPromise = null;
+        throw error;
+      });
   }
 
   return topicLookupPromise;
@@ -225,37 +252,46 @@ async function fetchVideos(): Promise<VideoItem[]> {
 }
 
 async function fetchVideosPage(offset: number, limit: number): Promise<ContentResponse> {
-  const [videoPayload, audienceLookup, topicLookup] = await Promise.all([
-    fetchJson<JsonApiCollection<JsonApiVideo>>(
-      `${JSONAPI_BASE}resource/video?page[limit]=${limit}&page[offset]=${offset}&jsonapi_include=1&filter[status]=1&sort=-created`
-    ),
-    getAudienceLookup(),
-    getTopicLookup(),
-  ]);
+  try {
+    const [videoPayload, audienceLookup, topicLookup] = await Promise.all([
+      fetchJson<JsonApiCollection<JsonApiVideo>>(
+        `${JSONAPI_BASE}resource/video?page[limit]=${limit}&page[offset]=${offset}&jsonapi_include=1&filter[status]=1&sort=-created`
+      ),
+      getAudienceLookup(),
+      getTopicLookup(),
+    ]);
 
-  const items = videoPayload.data.map((item) => {
-    const audienceName = audienceLookup.get(item.field_audience?.[0]?.id ?? '') ?? 'Educators';
-    const topicName = topicLookup.get(item.field_community_topics?.[0]?.id ?? '') ?? '';
-    const description = shorten(stripHtml(item.field_external_description));
+    const items = videoPayload.data.map((item) => {
+      const audienceName = audienceLookup.get(item.field_audience?.[0]?.id ?? '') ?? 'Educators';
+      const topicName = topicLookup.get(item.field_community_topics?.[0]?.id ?? '') ?? '';
+      const description = formatDescriptionForDisplay(item.field_external_description);
+
+      return {
+        id: item.id,
+        title: item.title,
+        description,
+        duration: item.field_video_duration?.trim() || '0:00',
+        thumbnailUrl: getVideoThumbnailUrl(item),
+        thumbnailFallbackUrl: getYoutubeThumbnailFallback(item.field_video_link),
+        audience: normalizeAudience(audienceName),
+        category: inferCategoryFromTopic(topicName, item.title),
+        requiresLogin: item.field_access_level?.id === LIMITED_PREVIEW_ACCESS_LEVEL,
+        language: normalizeLanguage(item.langcode),
+      } as VideoItem;
+    });
+
+    if (items.length === 0) {
+      return getFallbackPage(FALLBACK_VIDEOS, offset, limit);
+    }
 
     return {
-      id: item.id,
-      title: item.title,
-      description,
-      duration: item.field_video_duration?.trim() || '0:00',
-      thumbnailUrl: getVideoThumbnailUrl(item),
-      thumbnailFallbackUrl: getYoutubeThumbnailFallback(item.field_video_link),
-      audience: normalizeAudience(audienceName),
-      category: inferCategoryFromTopic(topicName, item.title),
-      requiresLogin: item.field_access_level?.id === LIMITED_PREVIEW_ACCESS_LEVEL,
-      language: normalizeLanguage(item.langcode),
-    } as VideoItem;
-  });
-
-  return {
-    total: videoPayload.meta?.count ?? items.length,
-    items,
-  };
+      total: videoPayload.meta?.count ?? items.length,
+      items,
+    };
+  } catch (error) {
+    console.warn('Failed to fetch live videos. Falling back to local snapshot.', error);
+    return getFallbackPage(FALLBACK_VIDEOS, offset, limit);
+  }
 }
 
 async function fetchArticles(): Promise<ArticleItem[]> {
@@ -265,37 +301,46 @@ async function fetchArticles(): Promise<ArticleItem[]> {
 }
 
 async function fetchArticlesPage(offset: number, limit: number): Promise<ContentResponse> {
-  const [articlePayload, audienceLookup, topicLookup] = await Promise.all([
-    fetchJson<JsonApiCollection<JsonApiArticle>>(
-      `${JSONAPI_BASE}node/info_article?page[limit]=${limit}&page[offset]=${offset}&jsonapi_include=1&filter[status]=1&sort=-created`
-    ),
-    getAudienceLookup(),
-    getTopicLookup(),
-  ]);
+  try {
+    const [articlePayload, audienceLookup, topicLookup] = await Promise.all([
+      fetchJson<JsonApiCollection<JsonApiArticle>>(
+        `${JSONAPI_BASE}node/info_article?page[limit]=${limit}&page[offset]=${offset}&jsonapi_include=1&filter[status]=1&sort=-created`
+      ),
+      getAudienceLookup(),
+      getTopicLookup(),
+    ]);
 
-  const items = articlePayload.data.map((item) => {
-    const audienceName = audienceLookup.get(item.field_audience?.[0]?.id ?? '') ?? 'Educators';
-    const topicName = topicLookup.get(item.field_community_topics?.[0]?.id ?? '') ?? '';
-    const description = shorten(
-      stripHtml(item.field_external_description || item.field_preview_summary || item.body?.summary || item.body?.value)
-    );
+    const items = articlePayload.data.map((item) => {
+      const audienceName = audienceLookup.get(item.field_audience?.[0]?.id ?? '') ?? 'Educators';
+      const topicName = topicLookup.get(item.field_community_topics?.[0]?.id ?? '') ?? '';
+      const description = formatDescriptionForDisplay(
+        item.field_external_description || item.field_preview_summary || item.body?.summary || item.body?.value
+      );
+
+      return {
+        id: item.id,
+        title: item.title,
+        description,
+        readTime: '5 min read',
+        audience: normalizeAudience(audienceName),
+        category: inferCategoryFromTopic(topicName, item.title),
+        requiresLogin: item.field_access_level?.id === LIMITED_PREVIEW_ACCESS_LEVEL,
+        language: normalizeLanguage(item.langcode),
+      } as ArticleItem;
+    });
+
+    if (items.length === 0) {
+      return getFallbackPage(FALLBACK_ARTICLES, offset, limit);
+    }
 
     return {
-      id: item.id,
-      title: item.title,
-      description,
-      readTime: '5 min read',
-      audience: normalizeAudience(audienceName),
-      category: inferCategoryFromTopic(topicName, item.title),
-      requiresLogin: item.field_access_level?.id === LIMITED_PREVIEW_ACCESS_LEVEL,
-      language: normalizeLanguage(item.langcode),
-    } as ArticleItem;
-  });
-
-  return {
-    total: articlePayload.meta?.count ?? items.length,
-    items,
-  };
+      total: articlePayload.meta?.count ?? items.length,
+      items,
+    };
+  } catch (error) {
+    console.warn('Failed to fetch live articles. Falling back to local snapshot.', error);
+    return getFallbackPage(FALLBACK_ARTICLES, offset, limit);
+  }
 }
 
 function filterByQuery(items: ContentItem[], query: VideoQuery): ContentItem[] {

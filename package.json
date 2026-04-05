@@ -12,7 +12,8 @@
     "quickstart": "bash ./scripts/quickstart.sh",
     "quickstart:ios": "bash ./scripts/quickstart.sh ios",
     "quickstart:android": "bash ./scripts/quickstart.sh android",
-    "quickstart:web": "bash ./scripts/quickstart.sh web"
+    "quickstart:web": "bash ./scripts/quickstart.sh web",
+    "generate:community-fallback": "node ./scripts/generate-community-fallback.mjs"
   },
   "dependencies": {
     "expo": "^54.0.33",
