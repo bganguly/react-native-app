@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const JSONAPI_BASE = 'https://bigfuture.collegeboard.org/jsonapi/';
 const LIMITED_PREVIEW_ACCESS_LEVEL = '546c2dcd-379c-4cb6-8259-8b640b5f3fe0';
 const PAGE_SIZE = 50;
+const MAX_FALLBACK_ITEMS = 45;
 
 function normalizeAudience(value = '') {
   const normalized = value.toLowerCase();
@@ -190,7 +191,7 @@ async function generateFallbackData() {
       requiresLogin: item.field_access_level?.id === LIMITED_PREVIEW_ACCESS_LEVEL,
       language: normalizeLanguage(item.langcode),
     };
-  });
+  }).slice(0, MAX_FALLBACK_ITEMS);
 
   const articles = (articleItems ?? []).map((item) => {
     const audienceName = audienceLookup.get(item.field_audience?.[0]?.id ?? '') ?? 'Educators';
@@ -206,7 +207,7 @@ async function generateFallbackData() {
       requiresLogin: item.field_access_level?.id === LIMITED_PREVIEW_ACCESS_LEVEL,
       language: normalizeLanguage(item.langcode),
     };
-  });
+  }).slice(0, MAX_FALLBACK_ITEMS);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -218,22 +219,14 @@ async function generateFallbackData() {
 
 async function main() {
   const snapshot = await generateFallbackData();
-  const videosFileContent = `import { VideoItem } from '../types';\n\nexport const FALLBACK_VIDEOS: VideoItem[] = ${JSON.stringify(snapshot.videos, null, 2)};\n`;
-  const articlesFileContent = `import { ArticleItem } from '../types';\n\nexport const FALLBACK_ARTICLES: ArticleItem[] = ${JSON.stringify(snapshot.articles, null, 2)};\n`;
-  const indexFileContent = `export const COMMUNITY_FALLBACK_GENERATED_AT = ${JSON.stringify(snapshot.generatedAt)};\nexport const COMMUNITY_FALLBACK_SOURCE = ${JSON.stringify(snapshot.source)};\n\nexport { FALLBACK_VIDEOS } from './communityFallbackVideos';\nexport { FALLBACK_ARTICLES } from './communityFallbackArticles';\n`;
+  const fallbackFileContent = `import { ArticleItem, VideoItem } from '../types';\n\nexport const COMMUNITY_FALLBACK_GENERATED_AT = ${JSON.stringify(snapshot.generatedAt)};\nexport const COMMUNITY_FALLBACK_SOURCE = ${JSON.stringify(snapshot.source)};\n\nexport const FALLBACK_VIDEOS: VideoItem[] = ${JSON.stringify(snapshot.videos, null, 2)};\n\nexport const FALLBACK_ARTICLES: ArticleItem[] = ${JSON.stringify(snapshot.articles, null, 2)};\n`;
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  const outputVideosPath = path.resolve(__dirname, '../src/services/communityFallbackVideos.ts');
-  const outputArticlesPath = path.resolve(__dirname, '../src/services/communityFallbackArticles.ts');
-  const outputIndexPath = path.resolve(__dirname, '../src/services/communityFallbackData.ts');
+  const outputFallbackPath = path.resolve(__dirname, '../src/services/communityFallbackData.ts');
 
-  await Promise.all([
-    writeFile(outputVideosPath, videosFileContent, 'utf8'),
-    writeFile(outputArticlesPath, articlesFileContent, 'utf8'),
-    writeFile(outputIndexPath, indexFileContent, 'utf8'),
-  ]);
-  console.log(`Wrote fallback snapshot to ${outputVideosPath}, ${outputArticlesPath}, and ${outputIndexPath}`);
+  await writeFile(outputFallbackPath, fallbackFileContent, 'utf8');
+  console.log(`Wrote fallback snapshot to ${outputFallbackPath}`);
 }
 
 main().catch((error) => {
