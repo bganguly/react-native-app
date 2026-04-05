@@ -13,6 +13,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { fetchCommunityContentPage } from './src/services/communityApi';
 import { styles } from './src/styles/appStyles';
+import { colors } from './src/styles/colors';
 import { ContentItem, ContentType } from './src/types';
 
 type AudienceFilter = 'All' | 'Student' | 'Parent' | 'Educator';
@@ -203,7 +204,7 @@ export default function App() {
     if (loadingMore) {
       return (
         <View style={styles.centerState}>
-          <ActivityIndicator color="#1d4ed8" size="small" />
+          <ActivityIndicator color={colors.blue700} size="small" />
           <Text style={styles.stateText}>Loading more...</Text>
         </View>
       );
@@ -258,7 +259,7 @@ export default function App() {
               <TextInput
                 onChangeText={setSearch}
                 placeholder={`Search ${contentType.toLowerCase()}s`}
-                placeholderTextColor="#64748b"
+                placeholderTextColor={colors.slate600}
                 style={styles.searchInput}
                 value={search}
               />
@@ -286,7 +287,7 @@ export default function App() {
           ListEmptyComponent={
             loadingInitial ? (
               <View style={styles.centerState}>
-                <ActivityIndicator color="#1d4ed8" size="large" />
+                <ActivityIndicator color={colors.blue700} size="large" />
                 <Text style={styles.stateText}>Loading content...</Text>
               </View>
             ) : loadError ? (
